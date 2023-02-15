@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/ninomae42/go_api_book/models"
 )
 
 func main() {
@@ -20,22 +19,41 @@ func main() {
 	}
 	defer db.Close()
 
-	article := models.Article{
-		Title: "insert test",
-		Contents: "Can I insert data correctly?",
-		UserName: "ninomae",
-	}
-	const sqlStr = `
-		insert into articles (title, contents, username, nice, created_at) values
-		(?, ?, ?, 0, now());
-	`
-	
-	result, err := db.Exec(sqlStr, article.Title, article.Contents, article.UserName)
+	// トランザクション開始
+	tx, err := db.Begin()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	fmt.Println(result.LastInsertId())
-	fmt.Println(result.RowsAffected())
+	article_id := 1
+	const sqlGetNice = `
+		select nice
+		from articles
+		where article_id = ?;
+	`
+
+	row := tx.QueryRow(sqlGetNice, article_id)
+	if err := row.Err(); err != nil {
+		fmt.Println(err)
+		tx.Rollback()
+		return
+	}
+
+	var nicenum int
+	err = row.Scan(&nicenum)
+	if err != nil {
+		fmt.Println(err)
+		tx.Rollback()
+		return
+	}
+	
+	const sqlUpdateNice = `update articles set nice = ? where article_id = ?`
+	_, err = tx.Exec(sqlUpdateNice, nicenum+1, article_id)
+	if err != nil {
+		fmt.Println(err)
+		tx.Rollback()
+		return
+	}
+	tx.Commit()
 }
