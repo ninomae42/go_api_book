@@ -6,6 +6,28 @@ import (
 	"github.com/ninomae42/go_api_book/models"
 )
 
+// 新規投稿をデータベースにinsertする関数
+func InsertComment(db *sql.DB, comment models.Comment) (models.Comment, error) {
+	const sqlStr = `
+		insert into comments (article_id, message, created_at) values
+		(?, ?, now());
+	`
+
+	var newComment models.Comment
+	newComment.ArticleID = comment.ArticleID
+	newComment.Message = comment.Message
+
+	result, err := db.Exec(sqlStr, comment.ArticleID, comment.Message)
+	if err != nil {
+		return models.Comment{}, err
+	}
+
+	id, _ := result.LastInsertId()
+	newComment.CommentID = int(id)
+	return newComment, nil
+}
+
+// 指定IDの記事についたコメント一覧を取得する関数
 func SelectCommentList(db *sql.DB, articleID int) ([]models.Comment, error) {
 	const sqlStr = `
 		select
